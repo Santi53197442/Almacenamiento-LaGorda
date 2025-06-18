@@ -1,5 +1,4 @@
-package com.almacenamiento.backend.security;
-
+import io.jsonwebtoken.JwtException; // <-- ¡Asegúrate de importar esta o la excepción específica de tu librería!
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,13 +29,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // --- AÑADE ESTE BLOQUE ---
-        // Si la petición es para un endpoint de autenticación, no hacemos nada y pasamos al siguiente filtro.
+        // CAMBIO 1: Ignorar los endpoints de autenticación
         if (request.getServletPath().contains("/api/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
-        // -------------------------
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
@@ -46,21 +43,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        jwt = authHeader.substring(7);
+
+        // CAMBIO 2: Envolver la lógica del token en un try-catch
+        try {
+            userEmail = jwtService.extractUsername(jwt);
+
+            // Si tenemos el email y el usuario no está autenticado aún
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+                // Si el token es válido, autenticamos al usuario
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Guardamos la autenticación en el contexto de seguridad
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (JwtException e) {
+            // Si el token es inválido (expirado, malformado, etc.), no hacemos nada.
+            // La petición continuará sin autenticación, y si el recurso es protegido,
+            // Spring Security lo denegará más adelante.
+            // Puedes añadir un log aquí si quieres registrar los intentos con tokens inválidos.
+            // logger.warn("Invalid JWT Token: {}", e.getMessage());
         }
+
+        // Pasamos la petición al siguiente filtro de la cadena
         filterChain.doFilter(request, response);
     }
 }
