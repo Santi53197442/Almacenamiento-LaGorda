@@ -1,3 +1,5 @@
+package com.almacenamiento.backend.security;
+
 import io.jsonwebtoken.JwtException; // <-- ¡Asegúrate de importar esta o la excepción específica de tu librería!
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
