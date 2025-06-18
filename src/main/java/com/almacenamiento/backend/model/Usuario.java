@@ -17,7 +17,7 @@ import java.util.Collection;
 @NoArgsConstructor
 @Entity
 @Table(name = "usuarios")
-@Inheritance(strategy = InheritanceType.JOINED)
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 public abstract class Usuario implements UserDetails {
 
     @Id // El email es ahora la clave primaria
