@@ -29,6 +29,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+
+        // --- AÑADE ESTE BLOQUE ---
+        // Si la petición es para un endpoint de autenticación, no hacemos nada y pasamos al siguiente filtro.
+        if (request.getServletPath().contains("/api/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        // -------------------------
+
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
