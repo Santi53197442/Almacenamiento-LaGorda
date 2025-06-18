@@ -3,6 +3,7 @@ package com.almacenamiento.backend.config;
 
 // Imports necesarios
 import com.almacenamiento.backend.repository.ClienteRepository; // Asegúrate de que el import sea el de tu repositorio
+import com.almacenamiento.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,11 +20,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @RequiredArgsConstructor
 public class ApplicationConfig {
 
-    private final ClienteRepository clienteRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    @Bean // <--- ANOTACIÓN CRÍTICA #2
+    @Bean
     public UserDetailsService userDetailsService() {
-        return username -> clienteRepository.findByEmail(username)
+        // La lógica es la misma, pero ahora usa el nuevo repositorio
+        return username -> usuarioRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado con el email: " + username));
     }
 
