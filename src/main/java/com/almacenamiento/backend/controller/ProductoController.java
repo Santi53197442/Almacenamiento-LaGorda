@@ -22,7 +22,8 @@ public class ProductoController {
     }
 
     @PostMapping
-    public ResponseEntity<Producto> agregarProducto(@RequestBody ProductoDto productoDto) {
-        return ResponseEntity.ok(productoService.agregarProducto(productoDto));
+    public ResponseEntity<ProductoDto> agregarProducto(@RequestBody ProductoDto productoDto) {
+        ProductoDto productoCreado = productoService.agregarProducto(productoDto);
+        return ResponseEntity.ok(productoCreado);
     }
 }
