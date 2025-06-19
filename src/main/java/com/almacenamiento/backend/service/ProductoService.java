@@ -7,13 +7,15 @@ import com.almacenamiento.backend.model.Producto;
 import com.almacenamiento.backend.model.Usuario;
 import com.almacenamiento.backend.repository.ProductoRepository;
 import com.almacenamiento.backend.repository.UsuarioRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // <-- Es mejor usar el de Spring
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,58 +24,111 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
 
-    public List<Producto> getProductosDeMiCasa() {
-        Casa casa = getCasaDelUsuarioAutenticado();
-        return productoRepository.findByCasaId(casa.getId());
-    }
-
+    /**
+     * Crea un nuevo producto en la base de datos asociado a la casa del usuario autenticado.
+     */
     @Transactional
-    public ProductoDto agregarProducto(ProductoDto productoDto) {
-        // --- 1. Obtener usuario y casa (lógica que ya tienes) ---
-        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        Usuario usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + userEmail));
+    public ProductoDto agregarNuevoProducto(ProductoDto productoDto) {
+        // --- 1. Obtener usuario y casa ---
+        Usuario usuario = getUsuarioAutenticado();
+        Casa casaDelUsuario = getCasaDelUsuario(usuario);
 
-        Casa casaDelUsuario = usuario.getCasa();
-        if (casaDelUsuario == null) {
-            throw new IllegalStateException("El usuario debe pertenecer a una casa para agregar productos.");
-        }
-
-        // --- 2. Crear la ENTIDAD Producto a partir del DTO de la petición ---
+        // --- 2. Crear la ENTIDAD Producto a partir del DTO ---
         Producto nuevoProducto = new Producto();
         nuevoProducto.setNombre(productoDto.getNombre());
         nuevoProducto.setCantidad(productoDto.getCantidad());
         nuevoProducto.setUnidadMedida(productoDto.getUnidadMedida());
 
-        // Convertimos el String del DTO al tipo Enum que necesita la entidad
         try {
             nuevoProducto.setCategoria(Categoria.valueOf(productoDto.getCategoria().toUpperCase()));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("La categoría '" + productoDto.getCategoria() + "' no es válida.");
         }
-
         nuevoProducto.setCasa(casaDelUsuario);
 
-        // --- 3. Guardar la ENTIDAD en la base de datos ---
+        // --- 3. Guardar y convertir a DTO para la respuesta ---
         Producto productoGuardado = productoRepository.save(nuevoProducto);
+        return convertirAProductoDto(productoGuardado);
+    }
 
-        // --- 4. Convertir la ENTIDAD guardada a un DTO para la respuesta ---
+    /**
+     * Actualiza el stock de un producto existente. Sirve para sumar (cantidad positiva) o restar (cantidad negativa).
+     */
+    @Transactional
+    public ProductoDto actualizarStock(Long productoId, int cantidadAModificar) {
+        // --- 1. Obtener usuario y validar que el producto le pertenece ---
+        Usuario usuario = getUsuarioAutenticado();
+        Casa casaDelUsuario = getCasaDelUsuario(usuario);
+
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + productoId));
+
+        // Validación de seguridad CRÍTICA
+        if (!producto.getCasa().getId().equals(casaDelUsuario.getId())) {
+            throw new SecurityException("Acceso denegado. No tienes permiso para modificar este producto.");
+        }
+
+        // --- 2. Actualizar la cantidad ---
+        int nuevaCantidad = producto.getCantidad() + cantidadAModificar;
+        if (nuevaCantidad < 0) {
+            throw new IllegalArgumentException("No se puede restar más cantidad de la existente. Stock actual: " + producto.getCantidad());
+        }
+
+        producto.setCantidad(nuevaCantidad);
+        Producto productoActualizado = productoRepository.save(producto);
+
+        // --- 3. Devolver DTO actualizado ---
+        return convertirAProductoDto(productoActualizado);
+    }
+
+    /**
+     * Obtiene todos los productos de la casa del usuario autenticado.
+     * @return Una lista de ProductoDto.
+     */
+    public List<ProductoDto> getProductosDeMiCasa() {
+        try {
+            Usuario usuario = getUsuarioAutenticado();
+            Casa casaDelUsuario = getCasaDelUsuario(usuario);
+            List<Producto> productos = productoRepository.findByCasaId(casaDelUsuario.getId());
+
+            // Convertimos la lista de Entidades a una lista de DTOs
+            return productos.stream()
+                    .map(this::convertirAProductoDto)
+                    .collect(Collectors.toList());
+        } catch (IllegalStateException e) {
+            // Si el usuario no tiene casa, devolvemos una lista vacía.
+            return Collections.emptyList();
+        }
+    }
+
+    // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    /**
+     * Convierte una entidad Producto a un ProductoDto.
+     */
+    private ProductoDto convertirAProductoDto(Producto producto) {
         return ProductoDto.builder()
-                .id(productoGuardado.getId()) // Incluimos el ID generado
-                .nombre(productoGuardado.getNombre())
-                .cantidad(productoGuardado.getCantidad())
-                .unidadMedida(productoGuardado.getUnidadMedida())
-                .categoria(productoGuardado.getCategoria().name()) // Convertimos el Enum de vuelta a String
+                .id(producto.getId())
+                .nombre(producto.getNombre())
+                .cantidad(producto.getCantidad())
+                .unidadMedida(producto.getUnidadMedida())
+                .categoria(producto.getCategoria().name())
                 .build();
     }
 
-    // Aquí irían los métodos para actualizar y borrar productos...
-
-    private Casa getCasaDelUsuarioAutenticado() {
+    /**
+     * Obtiene la entidad Usuario del usuario actualmente autenticado.
+     */
+    private Usuario getUsuarioAutenticado() {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        Usuario usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalStateException("Usuario no encontrado."));
+        return usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario autenticado no encontrado en la base de datos."));
+    }
 
+    /**
+     * Obtiene la Casa de un usuario y lanza una excepción si no tiene una.
+     */
+    private Casa getCasaDelUsuario(Usuario usuario) {
         if (usuario.getCasa() == null) {
             throw new IllegalStateException("El usuario no pertenece a ninguna casa.");
         }
