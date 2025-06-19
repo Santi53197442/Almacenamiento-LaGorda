@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // Endpoints públicos, cualquiera puede acceder
                         // 🔥 CAMBIO CLAVE: Especificamos que se necesita la autoridad 'USER' 🔥
-                        .requestMatchers("/api/user/me", "/api/casas/**", "/api/productos/**").hasAuthority("USER")
+                        .requestMatchers("/api/user/me", "/api/casas/**", "/api/productos/**").hasRole("USER")
                         .anyRequest().authenticated() // Cualquier otra cosa, solo estar autenticado es suficiente
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

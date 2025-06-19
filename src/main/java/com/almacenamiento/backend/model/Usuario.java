@@ -77,9 +77,11 @@ public class Usuario implements UserDetails { // Implementa UserDetails para la 
     /**
      * Devuelve los roles/permisos del usuario. Para esta app, todos son "USER".
      */
+    // En el método getAuthorities()
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("USER")); // Rol único para todos
+        // AHORA USAMOS LA CONVENCIÓN DE ROLES DE SPRING
+        return List.of(new SimpleGrantedAuthority("ROLE_USER")); // <-- LÍNEA CORREGIDA
     }
 
     /**
