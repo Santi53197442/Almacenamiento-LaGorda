@@ -23,13 +23,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Deshabilitar CSRF para APIs REST stateless
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Endpoints públicos de autenticación
-                        .requestMatchers("/api/casas/**", "/api/productos/**").authenticated()
-                        .anyRequest().authenticated() // Cualquier otra petición requiere autenticación
+                        .requestMatchers("/api/auth/**").permitAll() // Endpoints públicos, cualquiera puede acceder
+                        // 🔥 CAMBIO CLAVE: Especificamos que se necesita la autoridad 'USER' 🔥
+                        .requestMatchers("/api/user/me", "/api/casas/**", "/api/productos/**").hasAuthority("USER")
+                        .anyRequest().authenticated() // Cualquier otra cosa, solo estar autenticado es suficiente
                 )
-                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Sesión sin estado
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
