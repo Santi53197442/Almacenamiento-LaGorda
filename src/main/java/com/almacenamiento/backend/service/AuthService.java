@@ -1,9 +1,6 @@
 package com.almacenamiento.backend.service; // Asegúrate de que el paquete sea el correcto
 
-
-import com.almacenamiento.backend.dto.AuthResponse;
-import com.almacenamiento.backend.dto.LoginRequest;
-import com.almacenamiento.backend.dto.RegisterRequest;
+import com.almacenamiento.backend.dto.*; // <-- NUEVO (Importa todos los DTOs, incluido UserProfileResponse)
 import com.almacenamiento.backend.model.Usuario;
 import com.almacenamiento.backend.repository.UsuarioRepository;
 import com.almacenamiento.backend.security.JwtService;
@@ -12,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder; // <-- NUEVO
+import org.springframework.security.core.userdetails.UsernameNotFoundException; // <-- NUEVO
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,66 +18,43 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-    // Dependencias necesarias para el servicio de autenticación
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    // Logger para depuración
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
     /**
      * Registra un nuevo usuario en el sistema.
-     *
-     * @param request DTO con los datos del usuario a registrar.
-     * @return una respuesta con el token JWT para el nuevo usuario.
-     * @throws IllegalArgumentException si el email ya está en uso.
+     * ... (tu método register() se queda igual, no hay que cambiarlo)
      */
     public AuthResponse register(RegisterRequest request) {
         logger.info("Iniciando proceso de registro para el email: {}", request.getEmail());
-
-        // 1. Verificar si el email ya existe en la base de datos
         if (usuarioRepository.findByEmail(request.getEmail()).isPresent()) {
             logger.warn("Intento de registro con email ya existente: {}", request.getEmail());
             throw new IllegalArgumentException("El email ya está en uso.");
         }
-
-        // 2. Crear una nueva instancia de la entidad Usuario
         var usuario = new Usuario(
                 request.getEmail(),
                 request.getNombre(),
                 request.getApellido(),
-                passwordEncoder.encode(request.getContrasenia()), // Importante: Codificar la contraseña
+                passwordEncoder.encode(request.getContrasenia()),
                 request.getTelefono(),
                 request.getFechaNac()
         );
-        logger.debug("Nuevo objeto Usuario creado para: {}", request.getEmail());
-
-        // 3. Guardar el nuevo usuario en la base de datos
         usuarioRepository.save(usuario);
         logger.info("Usuario guardado en la base de datos: {}", request.getEmail());
-
-        // 4. Generar un token JWT para el usuario recién registrado
         var jwtToken = jwtService.generateToken(usuario);
-        logger.info("Token JWT generado para el nuevo usuario.");
-
-        // 5. Devolver la respuesta con el token
         return AuthResponse.builder().token(jwtToken).build();
     }
 
     /**
      * Autentica a un usuario existente.
-     *
-     * @param request DTO con el email y la contraseña del usuario.
-     * @return una respuesta con el token JWT si la autenticación es exitosa.
-     * @throws org.springframework.security.core.AuthenticationException si las credenciales son inválidas.
+     * ... (tu método login() se queda igual, no hay que cambiarlo)
      */
     public AuthResponse login(LoginRequest request) {
         logger.info("Iniciando intento de login para el usuario: {}", request.getEmail());
-
-        // 1. Autenticar con Spring Security. Esto valida email y contraseña.
-        // Si las credenciales son incorrectas, lanzará una AuthenticationException.
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -89,18 +65,66 @@ public class AuthService {
             logger.info("Autenticación exitosa para: {}", request.getEmail());
         } catch (Exception e) {
             logger.error("Fallo en la autenticación para {}: {}", request.getEmail(), e.getMessage());
-            throw e; // Relanzar la excepción para que Spring Security la maneje (devuelve 401/403)
+            throw e;
         }
-
-        // 2. Si la autenticación fue exitosa, buscar al usuario en la BD para obtener sus datos completos
         logger.info("Buscando usuario en la BD para generar token: {}", request.getEmail());
         var usuario = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Error inesperado: Usuario no encontrado después de una autenticación exitosa."));
-
-        // 3. Generar y devolver el token JWT
         var jwtToken = jwtService.generateToken(usuario);
         logger.info("Login completado y token generado para: {}", request.getEmail());
-
         return AuthResponse.builder().token(jwtToken).build();
+    }
+
+    // =========================================================================
+    //               AQUÍ EMPIEZA EL CÓDIGO NUEVO QUE DEBES AÑADIR
+    // =========================================================================
+
+    /**
+     * Obtiene el perfil del usuario actualmente autenticado.
+     * Utiliza el contexto de seguridad para identificar al usuario a través del token JWT.
+     *
+     * @return un DTO con la información del perfil del usuario.
+     * @throws UsernameNotFoundException si el usuario del token no se encuentra en la BD.
+     */
+    public UserProfileResponse getUserProfile() {
+        logger.info("Iniciando obtención de perfil de usuario.");
+
+        // 1. Obtener el email del usuario autenticado desde el contexto de seguridad de Spring
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        logger.debug("Email del usuario autenticado: {}", userEmail);
+
+        // 2. Buscar al usuario en la base de datos usando el email
+        Usuario usuario = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    logger.error("Usuario no encontrado en la BD con email del token: {}", userEmail);
+                    return new UsernameNotFoundException("Usuario no encontrado con email: " + userEmail);
+                });
+
+        logger.debug("Usuario encontrado en la BD: {}", usuario.getEmail());
+
+        // 3. Mapear la información de la casa del usuario a un DTO.
+        //    Esto evita exponer la entidad completa de la Casa y sus relaciones.
+        CasaDto casaDto = null;
+        if (usuario.getCasa() != null) {
+            logger.debug("El usuario pertenece a la casa: {}", usuario.getCasa().getNombre());
+            casaDto = CasaDto.builder()
+                    .id(usuario.getCasa().getId())
+                    .nombre(usuario.getCasa().getNombre())
+                    .codigoInvitacion(usuario.getCasa().getCodigoInvitacion())
+                    .build();
+        } else {
+            logger.debug("El usuario no tiene una casa asignada.");
+        }
+
+        // 4. Construir y devolver la respuesta con los datos del perfil
+        UserProfileResponse profileResponse = UserProfileResponse.builder()
+                .email(usuario.getEmail())
+                .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
+                .casa(casaDto) // Será null si el usuario no tiene casa, que es lo que espera la app.
+                .build();
+
+        logger.info("Perfil de usuario generado exitosamente para: {}", userEmail);
+        return profileResponse;
     }
 }
