@@ -25,10 +25,11 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Endpoints públicos, cualquiera puede acceder
+                                .anyRequest().permitAll()
+                        //.requestMatchers("/api/auth/**").permitAll() // Endpoints públicos, cualquiera puede acceder
                         // 🔥 CAMBIO CLAVE: Especificamos que se necesita la autoridad 'USER' 🔥
-                        .requestMatchers("/api/user/me", "/api/casas/**", "/api/productos/**").hasRole("USER")
-                        .anyRequest().authenticated() // Cualquier otra cosa, solo estar autenticado es suficiente
+                       //requestMatchers("/api/user/me", "/api/casas/**", "/api/productos/**").hasRole("USER")
+                       //anyRequest().authenticated() // Cualquier otra cosa, solo estar autenticado es suficiente
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
