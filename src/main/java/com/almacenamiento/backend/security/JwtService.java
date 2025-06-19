@@ -6,6 +6,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority; // <-- IMPORTANTE
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors; // <-- IMPORTANTE
 
 @Service
 public class JwtService {
@@ -33,13 +35,20 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
+    // --- 🔥 CAMBIO #1: El método principal ahora crea las claims de autoridades ---
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        Map<String, Object> claims = new HashMap<>();
+        // Extraemos las autoridades (roles) del UserDetails y las añadimos al mapa de claims
+        claims.put("authorities", userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList()));
+        return generateToken(claims, userDetails);
     }
 
+    // El método sobrecargado no necesita cambios, pero ahora recibirá las claims
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return Jwts.builder()
-                .setClaims(extraClaims)
+                .setClaims(extraClaims) // <-- Ahora estas claims incluyen las autoridades
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
@@ -60,7 +69,8 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private Claims extractAllClaims(String token) {
+    // --- 🔥 CAMBIO #2: Hacemos este método público para usarlo en el filtro ---
+    public Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
                 .build()
