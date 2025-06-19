@@ -1,4 +1,4 @@
-package com.almacenamiento.backend.dto.AuthResponse;
+package com.almacenamiento.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthResponse {
-    private String token;
+public class LoginRequest {
+    private String email;
+    private String contrasenia;
 }

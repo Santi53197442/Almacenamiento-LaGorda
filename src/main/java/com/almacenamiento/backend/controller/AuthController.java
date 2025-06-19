@@ -2,9 +2,9 @@ package com.almacenamiento.backend.controller;
 
 
 
-import com.almacenamiento.backend.dto.AuthResponse.AuthResponse;
-import com.almacenamiento.backend.dto.AuthResponse.LoginRequest;
-import com.almacenamiento.backend.dto.AuthResponse.RegisterRequest;
+import com.almacenamiento.backend.dto.AuthResponse;
+import com.almacenamiento.backend.dto.LoginRequest;
+import com.almacenamiento.backend.dto.RegisterRequest;
 import com.almacenamiento.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

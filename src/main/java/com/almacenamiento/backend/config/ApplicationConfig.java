@@ -2,7 +2,6 @@
 package com.almacenamiento.backend.config;
 
 // Imports necesarios
-import com.almacenamiento.backend.repository.ClienteRepository; // Asegúrate de que el import sea el de tu repositorio
 import com.almacenamiento.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
