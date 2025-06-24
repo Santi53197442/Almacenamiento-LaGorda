@@ -1,3 +1,4 @@
+// en: dto/RecetaRequestDto.java
 package com.almacenamiento.backend.dto;
 
 import lombok.Data;
@@ -9,5 +10,6 @@ public class RecetaRequestDto {
     private String imageUrl;
     private String enlaceVideo;
     private String procedimiento;
-    private List<Long> ingredienteIds; // La app solo necesita enviar los IDs de los productos
+    // 🔥 CAMBIO: de List<Long> a List<IngredienteRequestDto>
+    private List<IngredienteRequestDto> ingredientes;
 }

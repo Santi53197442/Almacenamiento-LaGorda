@@ -1,3 +1,4 @@
+// Archivo: model/Receta.java
 package com.almacenamiento.backend.model;
 
 import jakarta.persistence.*;
@@ -29,12 +30,15 @@ public class Receta {
     @JoinColumn(name = "casa_id", nullable = false)
     private Casa casa;
 
-    // Relación Muchos-a-Muchos con Producto
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "receta_ingredientes",
-            joinColumns = @JoinColumn(name = "receta_id"),
-            inverseJoinColumns = @JoinColumn(name = "producto_id")
+    // 🔥 CAMBIO CRUCIAL: Se reemplaza @ManyToMany por esta relación @OneToMany
+    // `mappedBy = "receta"`: Indica que la entidad RecetaIngrediente gestiona la relación.
+    // `cascade = CascadeType.ALL`: Al guardar/actualizar/eliminar una Receta, se aplica la misma operación a sus RecetaIngrediente.
+    // `orphanRemoval = true`: Si un RecetaIngrediente es removido de este Set, se elimina de la base de datos.
+    @OneToMany(
+            mappedBy = "receta",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.EAGER
     )
-    private Set<Producto> ingredientes = new HashSet<>();
+    private Set<RecetaIngrediente> ingredientes = new HashSet<>();
 }
