@@ -12,5 +12,6 @@ public class RecetaResponseDto {
     private String imageUrl;
     private String enlaceVideo;
     private String procedimiento;
-    private List<ProductoDto> ingredientes; // Devolvemos los DTOs completos de los productos
+    // 👇 CAMBIO AQUÍ: Ahora coincide con lo que creas en el servicio
+    private List<IngredienteResponseDto> ingredientes;
 }
